@@ -20,8 +20,7 @@ TW_FLAGS= -DTRACY_ENABLE#\
 SRC_DIR=src
 LIB_DIR=lib
 OBJ_DIR=obj
-DIRS= $(SRC_DIR)/core $(SRC_DIR)/io $(SRC_DIR)/eikonal $(SRC_DIR)/imgui $(SRC_DIR)
-#$(SRC_DIR)/render $(SRC_DIR)/mesh
+DIRS= $(SRC_DIR)/core $(SRC_DIR)/io $(SRC_DIR)/eikonal $(SRC_DIR)
 
 # $(foreach var, list, text)
 SRC_FILES= $(foreach dir, $(DIRS), $(wildcard $(dir)/*.cpp))

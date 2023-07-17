@@ -142,7 +142,7 @@ void mesh_t::compute_base_connectivity(const bool verbose) // outside of struct 
   size_t n2n_con_sz = 0;//, n2n_max = 0;
   std::vector<std::set<idx_t>> n2n(num_pts);
 
-  #pragma omp parallel for
+  #pragma omp parallel for num_threads(16)
   for(size_t idx = 0 ; idx < num_pts ; idx++)
   {
     auto &iset = n2n[idx];
@@ -233,7 +233,7 @@ void mesh_t::compute_geo()
   //#ifdef TW_OMP_EN
   //#pragma omp parallel num_threads(TW_OMP_NT)
   //#endif
-  #pragma omp parallel for
+  #pragma omp parallel for num_threads(16)
   for (size_t edx = 0 ; edx < e2n_cnt.size() ; ++edx)
   {
     const size_t pos = 6*edx; dbl3_t edg; dbl_t M[6];
