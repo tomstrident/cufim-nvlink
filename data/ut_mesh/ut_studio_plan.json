@@ -1,0 +1,101 @@
+{
+    "config": {
+        "norm": {
+            "func": "fnorm",
+            "tags": [
+                1,
+                2,
+                3,
+                4
+            ]
+        }
+    },
+    "functions": {
+        "fnorm": {
+            "CV": {
+                "CVmeas": {
+                    "vf": 0.6,
+                    "vn": 0.3,
+                    "vs": 0.3
+                },
+                "CVref": {
+                    "vf": 0.6000000000000001,
+                    "vn": 0.6000000000000001,
+                    "vs": 0.6000000000000001
+                },
+                "G": {
+                    "gel": 0.625,
+                    "gen": 0.236,
+                    "get": 0.236,
+                    "gil": 0.174,
+                    "gin": 0.019,
+                    "git": 0.019,
+                    "surf2vol": 0.14
+                }
+            },
+            "EP": {
+                "apd": 300.0,
+                "bcl": 600.0,
+                "cycles": 100,
+                "init": null,
+                "init-sv": null,
+                "model": "TT2",
+                "modelpar": null,
+                "plugin-par": null,
+                "plugins": null
+            }
+        }
+    },
+    "simulation": {
+        "autoupdate": 0,
+        "deltatime": 150.0,
+        "drawblock": 1,
+        "drawstim": 1,
+        "solvertype": 4,
+        "stimuli": {
+            "S0": {
+                "active": 1,
+                "electrode": {
+                    "type": "vtxdata",
+                    "vtxdata": [
+                        9,
+                        8,
+                        53,
+                        50,
+                        52,
+                        49,
+                        48,
+                        51,
+                        4,
+                        5,
+                        130
+                    ]
+                },
+                "protocol": {
+                    "bcl": 1.0,
+                    "duration": 1.0,
+                    "npls": 1,
+                    "start": 0.0
+                },
+                "strength": 100.0,
+                "type": "Transmembrane Current"
+            }
+        },
+        "timesteps": 3,
+        "visdelay": 10.0,
+        "visibletags": 0
+    },
+    "solver": {
+        "beqm": true,
+        "dt": 25.0,
+        "dtsubstep": 1,
+        "lumping": false,
+        "opsplit": true,
+        "stol": 1e-06,
+        "ts": 1
+    },
+    "tuning": {
+        "dx": 250.0,
+        "fixge": false
+    }
+}
