@@ -71,8 +71,8 @@
 #include "io/vtk.h"
 #include "eikonal/cuda_fim.h"
 
-// libs
-#include "../lib/argparse.hpp" // (Copyright (c) 2018 Pranav Srinivas Kumar)
+// libs (Copyright (c) 2018 Pranav Srinivas Kumar)
+#include "../lib/argparse.hpp"
 
 // stdlib includes
 #include <string>
@@ -82,7 +82,7 @@
 namespace tw { // =============================================================
 // ----------------------------------------------------------------------------
 void run(const std::string &mesh_path, const std::string &part_path,
-         const std::string &plan_path, const std::string out_path="")
+         const std::string &plan_path, const std::string &out_path)
 {
   // load mesh
   mesh_t mesh;
@@ -123,6 +123,36 @@ void run_unit_tests()
   test_logging();
   //cuda_fim_test2();
   //cuda_fim_test3();
+
+  //const dim3 block(threads_per_block);
+  //const dim3 grid(1);//(kNum + block.x - 1)/block.x
+  //void *params[] = {&d_smsh};//&d_values
+  //checkCudaErrors(cudaLaunchCooperativeKernel((void*)coop_kernel_test, grid, block, params));
+  //return;
+
+  /*
+  mesh.compute_geo();
+  test_gray_code(mesh);
+
+  //for (int it = 0 ; it < static_cast<int>(mesh.e2n_cnt.size()) ; ++it)
+  //  std::cout<<"edx"<<it<<": "<<mesh.geo[6*it+0]<<" "<<mesh.geo[6*it+1]<<" "<<mesh.geo[6*it+2]<<" "<<mesh.geo[6*it+3]<<" "<<mesh.geo[6*it+4]<<" "<<mesh.geo[6*it+5]<<" "<<"\n";
+
+  ek_data ekdata(mesh);
+  load_options(cfg_path, ekdata.opts);
+  load_plan(plan_path, ekdata); // check if plan <-> mesh
+  ekdata.opts.dt = 150e3;
+  ekdata.opts.n_steps = 3;
+
+  // test: elm 168 idx 159
+  //ekdata.phi[5] = 75e3; ekdata.states[5] = ek_narrow; 
+  //ekdata.phi[51] = 60e3; ekdata.states[51] = ek_narrow;
+  //ekdata.phi[130] = 50e3; ekdata.states[130] = ek_narrow;
+
+  //const dbl_t res = solve_local(mesh, ekdata, 159, 168, ek_narrow, 0.0, DBL_INF);
+  //const dbl_t ref = update_phi_ref(mesh, ekdata, 159, 168, ek_narrow);
+  //std::cout<<"phi res: "<<res<<" vs "<<ref<<"\n";
+  */
+
 #if true
   run("data/ut_mesh/ut_mesh.vtk",       "data/ut_mesh/ut_mesh.tags", 
       "data/ut_mesh/ut_mesh.plan.json", "data/output/cufim-ut_mesh-out.vtk");
@@ -138,6 +168,7 @@ int main(int argc, char* argv[])
 {
   int exit_code = EXIT_SUCCESS;
   // make clean && make && ./cufim-nvlink -mesh=data/ut_mesh/ut_mesh.vtk -part=data/ut_mesh/ut_mesh.tags -plan=data/ut_mesh/ut_studio_plan.json -outfile=data/output/out.vtk
+  // ./cufim-nvlink --mesh=/home/tom/workspace/masc-experiments/heart2/S62_1200um.vtk --part=/home/tom/workspace/masc-experiments/heart2/S62_1200um.7560.tags --plan=/home/tom/workspace/masc-experiments/heart2/S62_1200um.plan.json --odir=data/output/cufim-heart_1200um-out.vtk
 
   argparse::ArgumentParser program("cufim-nvlink", "0.5.0"); tw::print_head();
   program.add_description("Forward a thing to the next member.");
@@ -152,6 +183,7 @@ int main(int argc, char* argv[])
   program.add_argument("-t", "--test").help("run unit test configuration").default_value(false).implicit_value(true);
   program.add_argument("-np", "--num_threads").help("specifies how many threads are used").default_value(8).metavar("INT");
   //program.add_argument("-v", "--verbose").help("increases output verbosity").default_value(false).implicit_value(true);
+  // gpuids (default 0) 0,1,2,3
 
   program.add_epilog("Possible things include betingalw, chiz, and res.");
 
@@ -176,8 +208,8 @@ int main(int argc, char* argv[])
       cudainfo.print();
     else if (program.is_used("--test"))
       tw::run_unit_tests();
-    else if (program.is_used("--mesh") && program.is_used("--part") && program.is_used("--plan"))
-      tw::run(program.get("--mesh"), program.get("--part"), program.get("--plan"));
+    else if (program.is_used("--mesh") && program.is_used("--part") && program.is_used("--plan") && program.is_used("--odir"))
+      tw::run(program.get("--mesh"), program.get("--part"), program.get("--plan"), program.get("--odir"));
     else
       std::cout<<program<<std::endl;
   } 

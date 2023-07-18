@@ -2443,6 +2443,20 @@ void CudaSolverFIM::solve(std::vector<std::vector<dbl_t>> &act_ms,
   std::chrono::time_point<std::chrono::steady_clock> start, end;
   start = std::chrono::steady_clock::now();
 
+  /*indicators::show_console_cursor(false);
+
+  indicators::BlockProgressBar bar{
+    indicators::option::BarWidth{50},
+    indicators::option::Start{"["},
+    indicators::option::End{"]"},
+    indicators::option::ForegroundColor{indicators::Color::white},
+    indicators::option::ShowElapsedTime{true},
+    indicators::option::ShowRemainingTime{true},
+    indicators::option::FontStyles{std::vector<indicators::FontStyle>{indicators::FontStyle::bold}}
+  };
+
+  indicators::show_console_cursor(true);*/
+
   for (size_t step = 0 ; step < opts.n_steps ; ++step)
   {
     phi_start = cur_time;
@@ -2456,7 +2470,7 @@ void CudaSolverFIM::solve(std::vector<std::vector<dbl_t>> &act_ms,
 
     compute_step<<<h_smsh.N, 256, max_shared_bytes>>>(d_smsh, d_eksv, d_inter, wavefront_width, cur_time, phi_start, opts.dt);//, update_stims_flag // generates 1 act/apd -> (phi, di)
     gpuErrchk(cudaPeekAtLastError()); //checkCudaErrors(cudaGetLastError());
-    std::cout<<"iter "<<step<<"\n";
+    //std::cout<<"iter "<<step<<"\n";
     checkCudaErrors(cudaDeviceSynchronize());
     // get act/apd from narrow aggs
     // assemble act and apd on CPU

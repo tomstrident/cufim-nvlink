@@ -144,6 +144,9 @@ cufim-nvlink: $(OBJ_FILES) $(OBJ_CUDA)
 test: clean cufim-nvlink-par
 	./cufim-nvlink --test
 
+heart: clean cufim-nvlink-par
+	./cufim-nvlink --mesh=data/heart/S62.vtk --part=data/heart/S62.7560.tags --plan=data/heart/S62.plan.json --odir=data/output/cufim-heart-out.vtk
+
 memtest: clean cufim-nvlink-par
 	valgrind ./cufim-nvlink
 

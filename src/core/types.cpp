@@ -42,8 +42,7 @@ void mesh_t::compute_dsp(const std::vector<cnt_t>& cnt, std::vector<idx_t>& dsp)
 // big parallel loop?
 void mesh_t::compute_base_connectivity(const bool verbose) // outside of struct -> applied for mesh and agglomerates
 {
-  log_info("compute_base_connectivity");
-  //log_info("compute_base_connectivity"); //log_info("compute_base_connectivity");
+  //log_info("compute_base_connectivity");
   std::chrono::time_point<std::chrono::steady_clock> start, end;
   start = std::chrono::steady_clock::now();
 
