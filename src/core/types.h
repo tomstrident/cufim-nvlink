@@ -384,8 +384,8 @@ struct ek_data
   const mesh_t &mesh;
   size_t Npts, Nelm, Ndat;
   //int Nint = -1;
-  dbl_t dt = 0.0;
-  size_t n_steps = 0;
+  //dbl_t dt = 0.0;
+  //size_t n_steps = 0;
 
   ek_options opts;
   std::vector<ek_event> events;

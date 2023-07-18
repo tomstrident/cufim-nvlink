@@ -39,5 +39,6 @@
 cfg
 obj
 data/heart
+data/output
 cufim-nvlink
 null.d

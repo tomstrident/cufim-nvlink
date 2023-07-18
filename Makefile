@@ -34,7 +34,7 @@ OBJ_CUDA= $(patsubst src/%.cu, obj/%.o, $(SRC_CUDA))
 CUDA_ROOT_DIR=/usr/local/cuda
 #CUDA_ROOT_DIR=/usr/include/cuda
 #CUDA_ROOT_DIR=/usr/local/cuda-12.1
-CUDA_SAMPLES_ROOT_DIR=/home/tom/examples/cuda-samples/Common
+#CUDA_SAMPLES_ROOT_DIR=/home/tom/examples/cuda-samples/Common
 
 CUDA_LIB_DIR= -L$(CUDA_ROOT_DIR)/lib64
 CUDA_INC_DIR= -I$(CUDA_ROOT_DIR)/include
@@ -76,7 +76,7 @@ CXX_OPTS+= -DDEBUG -g -fopenmp
 # todo: automatically determine sm
 
 NVCC= nvcc 
-NVCC_OPTS= -Xcudafe --diag_suppress=esa_on_defaulted_function_ignored -g -g -arch=sm_80
+NVCC_OPTS= -Xcudafe --diag_suppress=esa_on_defaulted_function_ignored -g -arch=sm_80
 # -arch=sm_86
 # -use_fast_math
 # -arch=sm_50
@@ -142,7 +142,7 @@ cufim-nvlink: $(OBJ_FILES) $(OBJ_CUDA)
 
 # run unit tests (compile in debug?)
 test: clean cufim-nvlink-par
-	./cufim-nvlink
+	./cufim-nvlink --test
 
 memtest: clean cufim-nvlink-par
 	valgrind ./cufim-nvlink

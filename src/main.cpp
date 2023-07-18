@@ -64,20 +64,15 @@
 
 // CODE =======================================================================
 
-//#define STB_IMAGE_IMPLEMENTATION
-//#define TINYOBJLOADER_IMPLEMENTATION
-//#define NK_IMPLEMENTATION
-//#include "nuklear.h"
-
 // cufim-nvlink includes
 #include "core/types.h"
-#include "io/vtk.h"
-//#include "eikonal/fim.h"
-#include "core/cuda_base.h"
-#include "eikonal/cuda_fim.h"
-//#include "eikonal/cuda_fim2.h"
-
 #include "core/logging.h"
+#include "core/cuda_base.h"
+#include "io/vtk.h"
+#include "eikonal/cuda_fim.h"
+
+// libs
+#include "../lib/argparse.hpp" // (Copyright (c) 2018 Pranav Srinivas Kumar)
 
 // stdlib includes
 #include <string>
@@ -85,81 +80,114 @@
 #include <iostream>
 
 namespace tw { // =============================================================
-
-/*
-struct teststruct
+// ----------------------------------------------------------------------------
+void run(const std::string &mesh_path, const std::string &part_path,
+         const std::string &plan_path, const std::string out_path="")
 {
-  int N = 1337;
-  const bool shallow;
-  double *data=nullptr;
-  teststruct() : shallow(false) { std::cout<<"const: "<<shallow<<"\n"; }
-  ~teststruct() { std::cout<<"dest: "<<shallow<<"\n"; }
-  teststruct(const teststruct &other) : shallow(true) { std::cout<<"copy: "<<shallow<<"\n"; }
-};
+  // load mesh
+  mesh_t mesh;
+  load_vtk(mesh_path, mesh); // load_carp_txt(); load_mesh();
+  read_vector_txt(part_path, mesh.atags); // load_part();
+  mesh.compute_base_connectivity(true);
 
-void testfunc(teststruct sadf)
-{
-  std::cout<<sadf.N<<"\n";
-}*/
+  ek_data ekdata(mesh);
+  load_options("data/default.cfg", ekdata.opts);
+  load_plan(plan_path, ekdata);
+  ekdata.opts.print();
 
+  std::vector<std::vector<dbl_t>> act_ms, apd_ms;
+  CudaSolverFIM solver(ekdata);
+  solver.solve(act_ms, apd_ms, out_path);//"cuda_fim_heart.vtk"
+}
 // ----------------------------------------------------------------------------
 void run_unit_tests()
 {
-  tw::cuda_info cinfo;
-  cinfo.print();
-}
-// ----------------------------------------------------------------------------
-void run()
-{
+  //const std::string mesh_path = "/home/tom/workspace/masc-experiments/heart2/S62_500um.vtk";
+  //const std::string part_path = "/home/tom/workspace/masc-experiments/heart2/S62_500um.29135.tags";
+
+  /*
+  cudaSetDevice(0);                   // Set device 0 as current
+  float* p0;
+  size_t size = 1024 * sizeof(float);
+  cudaMalloc(&p0, size);              // Allocate memory on device 0
+  MyKernel<<<1000, 128>>>(p0);        // Launch kernel on device 0
+  cudaSetDevice(1);                   // Set device 1 as current
+  cudaDeviceEnablePeerAccess(0, 0);   // Enable peer-to-peer access
+                                      // with device 0
+
+  // Launch kernel on device 1
+  // This kernel launch can access memory on device 0 at address p0
+  MyKernel<<<1000, 128>>>(p0);
+  */
+
   test_logging();
-
-  //fim_test();
-  //cuda_base_test();
-  //cuda_fim_test();
-  cuda_fim_test2();
+  //cuda_fim_test2();
   //cuda_fim_test3();
-
-  //mem_t<size_t, float> test(2, shallow_e);
-
-  //teststruct test;
-  //testfunc(test);
-
-  //int* asdfasd;
-  //std::cout<<sizeof(decltype(&asdfasd))<<std::endl;
-  //std::cout<<has_size<int>::value<<std::endl;
-  //std::cout<<has_size<std::vector<int>>::value<<std::endl;
-  //std::cout<<sizeof(*std::declval<int*>())<<std::endl;
-  //std::cout<<sizeof(typeid(asdfasd))<<std::endl; 
-  //std::cout<<sizeof(*std::declval<decltype(asdfasd)>())<<std::endl;
-
-  checkCudaErrors(cudaDeviceReset());
+#if true
+  run("data/ut_mesh/ut_mesh.vtk",       "data/ut_mesh/ut_mesh.tags", 
+      "data/ut_mesh/ut_mesh.plan.json", "data/output/cufim-ut_mesh-out.vtk");
+#elif
+  run("data/heart/S62.vtk", "data/heart/S62.7560.tags", 
+      "data/heart/S62.plan.json", "data/output/cufim-heart-out.vtk");
+#endif
 }
 // ----------------------------------------------------------------------------
-} // ==========================================================================
+} // MAIN =====================================================================
 // ----------------------------------------------------------------------------
 int main(int argc, char* argv[])
 {
   int exit_code = EXIT_SUCCESS;
+  // make clean && make && ./cufim-nvlink -mesh=data/ut_mesh/ut_mesh.vtk -part=data/ut_mesh/ut_mesh.tags -plan=data/ut_mesh/ut_studio_plan.json -outfile=data/output/out.vtk
+
+  argparse::ArgumentParser program("cufim-nvlink", "0.5.0"); tw::print_head();
+  program.add_description("Forward a thing to the next member.");
+  program.set_assign_chars("=");
+
+  program.add_argument("-m", "--mesh").help("mesh file (vtk or carp_txt)").metavar("STR");
+  program.add_argument("-p", "--part").help("metis partitioning file    ").metavar("STR");
+  program.add_argument("-s", "--plan").help("plan file                  ").metavar("STR");
+  program.add_argument("-o", "--odir").help("output directory           ").metavar("STR");
+
+  program.add_argument("-i", "--info").help("outputs gpu information").default_value(false).implicit_value(true);
+  program.add_argument("-t", "--test").help("run unit test configuration").default_value(false).implicit_value(true);
+  program.add_argument("-np", "--num_threads").help("specifies how many threads are used").default_value(8).metavar("INT");
+  //program.add_argument("-v", "--verbose").help("increases output verbosity").default_value(false).implicit_value(true);
+
+  program.add_epilog("Possible things include betingalw, chiz, and res.");
 
   try
   {
-    const std::vector<std::string> args(argv, argv + argc);
-    tw::print_head(); // static and only here
-    //std::cout<<"TW_OMP_NT: "<<TW_OMP_NT<<std::endl;
-    tw::run_unit_tests();
+    program.parse_args(argc, argv);
+  }
+  catch (const std::runtime_error& err)
+  {
+    std::cerr<<err.what()<<std::endl;
+    std::cerr<<program;
+    return EXIT_FAILURE;
+  }
 
-    switch(argc)
-    {
-      case 1: { tw::run(); break; }
-      // case help: parser.print_help();
-      default: break;
-    }
+  try
+  {
+    tw::cuda_info cudainfo;
+
+    if (program.is_used("--help"))
+      std::cout<<program<<std::endl;
+    else if (program.is_used("--info"))
+      cudainfo.print();
+    else if (program.is_used("--test"))
+      tw::run_unit_tests();
+    else if (program.is_used("--mesh") && program.is_used("--part") && program.is_used("--plan"))
+      tw::run(program.get("--mesh"), program.get("--part"), program.get("--plan"));
+    else
+      std::cout<<program<<std::endl;
   } 
   catch(const std::exception& e)
   {
     std::cerr<<e.what()<<std::endl;
-    return EXIT_FAILURE;
+    exit_code = EXIT_FAILURE;
   }
+
+  checkCudaErrors(cudaDeviceReset());
 
   return exit_code;
 }

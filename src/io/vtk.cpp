@@ -94,6 +94,12 @@ void load_vtk(const std::string& vtk_path, mesh_t& mesh)
       }
     }
   }
+
+  printf("assign fibers\n");
+  mesh.lon.assign(3*mesh.e2n_cnt.size(), 0.0); // !!!! -> put into mesh loading
+  for (size_t it = 0 ; it < mesh.e2n_cnt.size() ; ++it)
+    mesh.lon[3*it] = 1.0;
+
   const auto end = std::chrono::steady_clock::now();
   const double dt = std::chrono::duration<double>(end - start).count();
   printf("took %lf s\n", dt);

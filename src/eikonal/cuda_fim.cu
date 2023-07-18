@@ -2401,7 +2401,10 @@ void CudaSolverFIM::solve(std::vector<std::vector<dbl_t>> &act_ms,
 {
   log_info("CudaSolverFIM::solve");
 
+  std::cout<<"dt_ms: "<<opts.dt<<", n_steps: "<<opts.n_steps<<"\n";
   std::cout<<"num_submeshes: "<<h_smsh.N<<", TPB: "<<threads_per_block<<"\n";
+  //checkCudaErrors(cudaFuncSetAttribute(compute_step, cudaFuncAttributeMaxDynamicSharedMemorySize, 160768));
+  //gpuErrchk(cudaPeekAtLastError());
 
   //const dim3 block(threads_per_block);
   //const dim3 grid(1);//(kNum + block.x - 1)/block.x
@@ -2440,18 +2443,18 @@ void CudaSolverFIM::solve(std::vector<std::vector<dbl_t>> &act_ms,
   std::chrono::time_point<std::chrono::steady_clock> start, end;
   start = std::chrono::steady_clock::now();
 
-  for (size_t step = 0 ; step < n_steps ; ++step)
+  for (size_t step = 0 ; step < opts.n_steps ; ++step)
   {
     phi_start = cur_time;
-    cur_time += dt;
+    cur_time += opts.dt;
 
     checkCudaErrors(cudaMemcpy(d_mct, h_mct.data(), mct_bytes, cudaMemcpyHostToDevice));
     
-    sync_step2<<<h_smsh.N, 256, max_shared_bytes>>>(d_smsh, d_eksv, d_inter);
+    sync_step2<<<h_smsh.N, 256>>>(d_smsh, d_eksv, d_inter);
     gpuErrchk(cudaPeekAtLastError()); //checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
 
-    compute_step<<<h_smsh.N, 256, max_shared_bytes>>>(d_smsh, d_eksv, d_inter, wavefront_width, cur_time, phi_start, dt);//, update_stims_flag // generates 1 act/apd -> (phi, di)
+    compute_step<<<h_smsh.N, 256, max_shared_bytes>>>(d_smsh, d_eksv, d_inter, wavefront_width, cur_time, phi_start, opts.dt);//, update_stims_flag // generates 1 act/apd -> (phi, di)
     gpuErrchk(cudaPeekAtLastError()); //checkCudaErrors(cudaGetLastError());
     std::cout<<"iter "<<step<<"\n";
     checkCudaErrors(cudaDeviceSynchronize());
@@ -2552,7 +2555,7 @@ void CudaSolverFIM::solve(std::vector<std::vector<dbl_t>> &act_ms,
   log_info("save vtk");
   std::vector<dbl_t> states_dbl;
   states_dbl.assign(states.begin(), states.end());
-  save_vtk("data/output/" + file, mesh, {phi, states_dbl}, {"phi", "states"}, {}, {});
+  save_vtk(file, mesh, {phi, states_dbl}, {"phi", "states"}, {}, {});
 
   //transpose_solution(act_ms, apd_ms); // many memcpys or just one?
 
@@ -3171,18 +3174,18 @@ __host__ void cuda_fim_test2()
   ek_data ekdata(mesh);
   load_options(cfg_path, ekdata.opts);
   load_plan(plan_path, ekdata); // check if plan <-> mesh
-  ekdata.dt = 150e3;
-  ekdata.n_steps = 3;
+  ekdata.opts.dt = 150e3;
+  ekdata.opts.n_steps = 3;
 
   // test: elm 168 idx 159
-  /*ekdata.phi[5] = 75e3; ekdata.states[5] = ek_narrow; 
-  ekdata.phi[51] = 60e3; ekdata.states[51] = ek_narrow;
-  ekdata.phi[130] = 50e3; ekdata.states[130] = ek_narrow;
+  //ekdata.phi[5] = 75e3; ekdata.states[5] = ek_narrow; 
+  //ekdata.phi[51] = 60e3; ekdata.states[51] = ek_narrow;
+  //ekdata.phi[130] = 50e3; ekdata.states[130] = ek_narrow;
 
-  const dbl_t res = solve_local(mesh, ekdata, 159, 168, ek_narrow, 0.0, DBL_INF);
-  const dbl_t ref = update_phi_ref(mesh, ekdata, 159, 168, ek_narrow);
-  std::cout<<"phi res: "<<res<<" vs "<<ref<<"\n";
-  */
+  //const dbl_t res = solve_local(mesh, ekdata, 159, 168, ek_narrow, 0.0, DBL_INF);
+  //const dbl_t ref = update_phi_ref(mesh, ekdata, 159, 168, ek_narrow);
+  //std::cout<<"phi res: "<<res<<" vs "<<ref<<"\n";
+  
 
   std::vector<std::vector<dbl_t>> act_ms, apd_ms;
   CudaSolverFIM solver(ekdata);
@@ -3199,6 +3202,9 @@ __host__ void cuda_fim_test3()
   const std::string plan_path = "data/heart/S62.plan.json";
   const std::string cfg_path  = "data/default.cfg";
   const std::string part_path = "data/heart/S62.7560.tags";//6050
+
+  //const std::string mesh_path = "/home/tom/workspace/masc-experiments/heart2/S62_500um.vtk";
+  //const std::string part_path = "/home/tom/workspace/masc-experiments/heart2/S62_500um.29135.tags";
 
   /*
   cudaSetDevice(0);                   // Set device 0 as current
@@ -3234,8 +3240,8 @@ __host__ void cuda_fim_test3()
   ek_data ekdata(mesh);
   load_options(cfg_path, ekdata.opts);
   load_plan(plan_path, ekdata); // check if plan <-> mesh
-  ekdata.dt = 1e3;
-  ekdata.n_steps = 100;
+  ekdata.opts.dt = 1e3;
+  ekdata.opts.n_steps = 100;
 
   std::vector<std::vector<dbl_t>> act_ms, apd_ms;
   CudaSolverFIM solver(ekdata);

@@ -15,13 +15,13 @@
             "CV": {
                 "CVmeas": {
                     "vf": 0.6,
-                    "vn": 0.3,
-                    "vs": 0.3
+                    "vn": 0.6,
+                    "vs": 0.6
                 },
                 "CVref": {
-                    "vf": 0.6000000000000001,
-                    "vn": 0.6000000000000001,
-                    "vs": 0.6000000000000001
+                    "vf": 0.6,
+                    "vn": 0.6,
+                    "vs": 0.6
                 },
                 "G": {
                     "gel": 0.625,
@@ -81,7 +81,7 @@
                 "type": "Transmembrane Current"
             }
         },
-        "timesteps": 3,
+        "timesteps": 4,
         "visdelay": 10.0,
         "visibletags": 0
     },

@@ -81,6 +81,7 @@ void read_vector_from_dat(const std::string &path, std::vector<T> &vec)
 template<typename T>
 inline void read_vector_txt(const std::string& path, std::vector<T>& vec)
 {
+  check_file_path(path);
   std::ifstream ifs(path); std::istream_iterator<T> isi_start{ifs}, isi_end;
 	vec.assign(isi_start, isi_end); //ifs.close(); automatically in destructor
 }
