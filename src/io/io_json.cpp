@@ -197,10 +197,10 @@ void read_sim_from_json(const nlohmann::json& root, ek_data &ekdata)
     }
 
     //std::cout<<item.name<<"\n";
-    std::cout<<item.tstart<<"\n";
-    std::cout<<item.dur<<"\n";
-    std::cout<<item.active<<"\n";
-    std::cout<<item.vtx.size()<<"\n";
+    //std::cout<<item.tstart<<"\n";
+    //std::cout<<item.dur<<"\n";
+    //std::cout<<item.active<<"\n";
+    //std::cout<<item.vtx.size()<<"\n";
 
     for (int it = 1 ; it < npls ; ++it)
     {

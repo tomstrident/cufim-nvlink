@@ -632,7 +632,7 @@ struct cmem_t // auto-align! -> cvec_t
 
   void destroy()
   {
-    log_info("destroy");
+    //log_info("destroy");
 
     switch(memtype)
     {
@@ -1443,8 +1443,8 @@ __forceinline__ __device__
 class CudaSolverFIM : public ek_data
 {
 protected:
-  const int threads_per_block = 32;
-  const int num_blocks = 4;
+  const int tpb = 256;
+  //const int num_blocks = 4;
   size_t max_shared_bytes = 0;
 
   // cuda solver
@@ -1466,6 +1466,8 @@ protected:
   //cmem_t<inter_t> h_inter, d_inter;
   //cmem_t<inter2_t> h_inter, d_inter;
   cmem_t<inter3_t> h_inter, d_inter;
+
+  std::chrono::time_point<std::chrono::steady_clock> start, end;
 
   void update_events();
   void update_delayed();
@@ -1504,15 +1506,15 @@ public:
   CudaSolverFIM(const ek_data &ekdata);
   ~CudaSolverFIM();
 
-  void solve(std::vector<std::vector<dbl_t>> &act_ms,
+  double solve(std::vector<std::vector<dbl_t>> &act_ms,
              std::vector<std::vector<dbl_t>> &apd_ms,
-             const std::string file);
+             const std::string file, const int num_reps);
 
-  void operator()(std::vector<std::vector<dbl_t>> &act_ms,
+  double operator()(std::vector<std::vector<dbl_t>> &act_ms,
                   std::vector<std::vector<dbl_t>> &apd_ms,
-                  const std::string file)
+                  const std::string file, const int num_reps)
   {
-    solve(act_ms, apd_ms, file);
+    return solve(act_ms, apd_ms, file, num_reps);
   }
 
   void step(const dbl_t dt);
@@ -1576,8 +1578,8 @@ public:
 
 // ----------------------------------------------------------------------------
 __host__ void test_gray_code(const mesh_t &mesh);
-__host__ void cuda_fim_test();
-__host__ void cuda_fim_test2();
-__host__ void cuda_fim_test3();
+//__host__ void cuda_fim_test();
+//__host__ void cuda_fim_test2();
+//__host__ void cuda_fim_test3();
 } // namespace tw -------------------------------------------------------
 #endif // TW_CUDA_FIM_H_

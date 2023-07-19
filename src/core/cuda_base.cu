@@ -508,6 +508,88 @@ void cuda_base_test()
   checkCudaErrors(cublasDestroy(handle));
   cudaDeviceReset();*/
 }
+//__syncwarp() -> warp
+//__syncthreads() -> block
+//g.sync() -> grid
+/*__global__ void coop_kernel_test(cmem_t<smsh_t> d_smsh)
+{
+  const int tidx = threadIdx.x + blockIdx.x*blockDim.x;
+  cooperative_groups::grid_group g = cooperative_groups::this_grid();
+  g.sync();
+  if (tidx == 0)
+  {
+    printf("block: %d block-dim: %d grid-dim: %d - mesh Nn: %lu\n", blockIdx.x, blockDim.x, gridDim.x, d_smsh[blockIdx.x].Nn);
+  }
+}
+...
+//const dim3 block(threads_per_block);
+//const dim3 grid(1);//(kNum + block.x - 1)/block.x
+//void *params[] = {&d_smsh};//&d_values
+//checkCudaErrors(cudaLaunchCooperativeKernel((void*)coop_kernel_test, grid, block, params));
+//return;
+*/
+
+/*
+// memcpy test
+std::vector<int> h_mct(h_smsh.N);
+const int mct_bytes = h_smsh.N*sizeof(int);
+int *d_mct;
+
+checkCudaErrors(cudaMalloc(&d_mct, mct_bytes));
+//checkCudaErrors(cudaMallocHost(&d_mct, mct_bytes));
+
+for (size_t step = 0 ; step < opts.n_steps ; ++step)
+{
+checkCudaErrors(cudaMemcpy(d_mct, h_mct.data(), mct_bytes, cudaMemcpyHostToDevice));
+checkCudaErrors(cudaMemcpy(h_mct.data(), d_mct, mct_bytes, cudaMemcpyDeviceToHost));
+}
+
+checkCudaErrors(cudaFree(d_mct));
+//checkCudaErrors(cudaFreeHost(d_mct));
+*/
+
+/*
+inter debug (cufim solve):
+  // debug
+  //d_ekfd.copy_to(h_ekfd);
+  //assemble_pointers(h_ekfd);
+  
+  //d_agfd.copy_to(h_agfd);
+  //assemble_pointers(h_agfd);
+  
+  //std::cout<<"main active list size: "<<h_agfd[0].active_size<<"\n";
+
+  //for (int it = 0 ; it < h_agfd[0].active_size ; ++it)
+  //  std::cout<<h_agfd[0].active_list[it]<<" ";
+  //std::cout<<"\n";
+
+  //d_ekfd.copy_to(h_ekfd);
+  //assemble_pointers(h_ekfd);
+
+  //std::cout<<"submesh active lists: \n";
+  //for (int it = 0 ; it < h_ekfd.N ; ++it)
+  //{
+  //  printf("agg%d: al: %d\n", it, h_ekfd[it].active_size);
+  //}
+
+  // inter debug:
+  //d_inter.copy_to(h_inter);
+  //assemble_pointers(h_inter);
+  //log_info("inter debug end");
+  //for (int it = 0 ; it < h_inter.N ; ++it)
+  //{
+  //  for (int jt = 0 ; jt < h_inter[it].Na ; ++jt)
+  //  {
+  //    std::cout<<"A"<<h_inter[it].adx_con[jt]<<": ";
+  //    idx_t dsp = h_inter[it].gcd_dsp[jt];
+  //    for (int kt = 0 ; kt < h_inter[it].gcd_cnt[jt] ; ++kt)
+  //    {
+  //      std::cout<<h_inter[it].gcd_con[dsp+kt]<<" ";
+  //    }
+  //    std::cout<<" - Na: "<<h_inter[it].Na<<" Nc: "<<h_inter[it].Nc<<"\n";
+  //  }
+  //}
+*/
 // ============================================================================
 }// namespace tw
 

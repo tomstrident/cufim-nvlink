@@ -1490,7 +1490,7 @@ CudaSolverFIM::CudaSolverFIM(const ek_data &ekdata) : ek_data(ekdata),
   //cmem_check(h_events);
   //cmem_check(d_events);
 
-  log_info("CudaSolverFIM end");
+  //log_info("CudaSolverFIM end");
 
   /*for (idx_t adx = 0 ; adx < static_cast<idx_t>(nAgg) ; ++adx)
   {
@@ -1502,7 +1502,7 @@ CudaSolverFIM::CudaSolverFIM(const ek_data &ekdata) : ek_data(ekdata),
 
 CudaSolverFIM::~CudaSolverFIM()
 {
-  log_info("CudaSolverFIM destr");
+  //log_info("CudaSolverFIM destr");
   h_smsh.destroy();
   d_smsh.destroy();
 }
@@ -2374,19 +2374,7 @@ __global__ void compute_step(cmem_t<smsh_t> d_smsh, cmem_t<eksv_t> d_esvd, cmem_
 
 
 
-//__syncwarp() -> warp
-//__syncthreads() -> block
-//g.sync() -> grid
-/*__global__ void coop_kernel_test(cmem_t<smsh_t> d_smsh)
-{
-  const int tidx = threadIdx.x + blockIdx.x*blockDim.x;
-  cooperative_groups::grid_group g = cooperative_groups::this_grid();
-  g.sync();
-  if (tidx == 0)
-  {
-    printf("block: %d block-dim: %d grid-dim: %d - mesh Nn: %lu\n", blockIdx.x, blockDim.x, gridDim.x, d_smsh[blockIdx.x].Nn);
-  }
-}*/
+
 
 // ----------------------------------------------------------------------------
 // could be a single cuda kernel ... (but then you always have to use many blocks .. [UNLIMITED POWER!])
@@ -2395,53 +2383,15 @@ __global__ void compute_step(cmem_t<smsh_t> d_smsh, cmem_t<eksv_t> d_esvd, cmem_
 //   - Too large a block or grid size
 //   - Too many registers used
 //   - Too much shared memory used
-void CudaSolverFIM::solve(std::vector<std::vector<dbl_t>> &act_ms,
+double CudaSolverFIM::solve(std::vector<std::vector<dbl_t>> &act_ms,
                           std::vector<std::vector<dbl_t>> &apd_ms,
-                          const std::string file)
+                          const std::string file, const int num_reps)
 {
+  double sum_exec_time_s = 0.0;
   log_info("CudaSolverFIM::solve");
-
-  std::cout<<"dt_ms: "<<opts.dt<<", n_steps: "<<opts.n_steps<<"\n";
-  std::cout<<"num_submeshes: "<<h_smsh.N<<", TPB: "<<threads_per_block<<"\n";
+  std::cout<<"num_submeshes: "<<h_smsh.N<<", TPB: "<<tpb<<"\n";
   //checkCudaErrors(cudaFuncSetAttribute(compute_step, cudaFuncAttributeMaxDynamicSharedMemorySize, 160768));
   //gpuErrchk(cudaPeekAtLastError());
-
-  //const dim3 block(threads_per_block);
-  //const dim3 grid(1);//(kNum + block.x - 1)/block.x
-  //void *params[] = {&d_smsh};//&d_values
-  //checkCudaErrors(cudaLaunchCooperativeKernel((void*)coop_kernel_test, grid, block, params));
-  //return;
-
-  // first concept
-  log_info("reset_states_gpu");
-  reset_states_gpu<<<h_smsh.N, 256>>>(d_eksv);//h_smsh.N , d_ekfd, d_agfd
-  gpuErrchk(cudaPeekAtLastError());
-  checkCudaErrors(cudaDeviceSynchronize());
-
-  //if (next_tstart >= cur_time)
-  log_info("update_events_gpu");
-  //update_events_gpu<<<h_events.N, threads_per_block>>>(d_eksv, d_ekfd, d_events, 0.0);
-  update_events_gpu<<<h_smsh.N, 256>>>(d_eksv, d_events, 0.0); //d_ekfd, d_agfd, 
-  gpuErrchk(cudaPeekAtLastError());
-  checkCudaErrors(cudaDeviceSynchronize());
-
-  // --------------------------------------------------------------------------
-  // new concept:
-  log_info("CUDA FIM - NEW CONCEPT");
-
-  // memcpy test
-  std::vector<int> h_mct(h_smsh.N);
-  const int mct_bytes = h_smsh.N*sizeof(int);
-  int *d_mct;
-
-  checkCudaErrors(cudaMalloc(&d_mct, mct_bytes));
-  //checkCudaErrors(cudaMallocHost(&d_mct, mct_bytes));
-
-  cur_time = 0.0; phi_start = 0.0;
-
-  log_info("CUDA FIM - ENTER");
-  std::chrono::time_point<std::chrono::steady_clock> start, end;
-  start = std::chrono::steady_clock::now();
 
   /*indicators::show_console_cursor(false);
 
@@ -2457,44 +2407,48 @@ void CudaSolverFIM::solve(std::vector<std::vector<dbl_t>> &act_ms,
 
   indicators::show_console_cursor(true);*/
 
-  for (size_t step = 0 ; step < opts.n_steps ; ++step)
+  for (int rid = 0 ; rid < num_reps ; ++rid)
   {
-    phi_start = cur_time;
-    cur_time += opts.dt;
-
-    checkCudaErrors(cudaMemcpy(d_mct, h_mct.data(), mct_bytes, cudaMemcpyHostToDevice));
-    
-    sync_step2<<<h_smsh.N, 256>>>(d_smsh, d_eksv, d_inter);
-    gpuErrchk(cudaPeekAtLastError()); //checkCudaErrors(cudaGetLastError());
+    //log_info("reset_states_gpu");
+    reset_states_gpu<<<h_smsh.N, tpb>>>(d_eksv);
+    gpuErrchk(cudaPeekAtLastError());
     checkCudaErrors(cudaDeviceSynchronize());
 
-    compute_step<<<h_smsh.N, 256, max_shared_bytes>>>(d_smsh, d_eksv, d_inter, wavefront_width, cur_time, phi_start, opts.dt);//, update_stims_flag // generates 1 act/apd -> (phi, di)
-    gpuErrchk(cudaPeekAtLastError()); //checkCudaErrors(cudaGetLastError());
-    //std::cout<<"iter "<<step<<"\n";
+    //log_info("update_events_gpu");
+    update_events_gpu<<<h_smsh.N, tpb>>>(d_eksv, d_events, 0.0);
+    gpuErrchk(cudaPeekAtLastError());
     checkCudaErrors(cudaDeviceSynchronize());
-    // get act/apd from narrow aggs
-    // assemble act and apd on CPU
 
-    checkCudaErrors(cudaMemcpy(h_mct.data(), d_mct, mct_bytes, cudaMemcpyDeviceToHost));
+    //log_info("main loop");
+    cur_time = 0.0; phi_start = 0.0;
+    start = std::chrono::steady_clock::now();
 
-    //if (stims.front().start >= phi_start)
-    //  update_stims_flag = true;
-    //  stims.pop_front();
+    for (size_t step = 0 ; step < opts.n_steps ; ++step)
+    {
+      phi_start = cur_time;
+      cur_time += opts.dt;
+
+      sync_step2<<<h_smsh.N, tpb>>>(d_smsh, d_eksv, d_inter);
+      gpuErrchk(cudaPeekAtLastError());
+      checkCudaErrors(cudaDeviceSynchronize());
+
+      compute_step<<<h_smsh.N, tpb, max_shared_bytes>>>(d_smsh, d_eksv, d_inter, wavefront_width, cur_time, phi_start, opts.dt);//, update_stims_flag // generates 1 act/apd -> (phi, di)
+      gpuErrchk(cudaPeekAtLastError());
+      checkCudaErrors(cudaDeviceSynchronize());
+      // get act/apd from narrow aggs
+      // assemble act and apd on CPU
+
+      //if (stims.front().start >= phi_start)
+      //  update_stims_flag = true;
+      //  stims.pop_front();
+    }
+
+    end = std::chrono::steady_clock::now();
+    const double exec_time_s = std::chrono::duration<double>(end - start).count();
+    sum_exec_time_s += exec_time_s;
+    printf("run %2d took %.5f s.\n", rid + 1, exec_time_s);
   }
 
-  end = std::chrono::steady_clock::now();
-  log_info("CUDA FIM - EXIT");
-  std::cout<<"  took: "<<std::chrono::duration<double>(end - start).count()<<"s !!!\n";
-
-  checkCudaErrors(cudaFree(d_mct));
-  //checkCudaErrors(cudaFreeHost(d_mct));
-  // --------------------------------------------------------------------------
-
-  // debug
-  //d_ekfd.copy_to(h_ekfd);
-  //assemble_pointers(h_ekfd);
-
-  log_info("copy states back");
   // copy states back
   d_eksv.copy_to(h_eksv);
   assemble_pointers(h_eksv);
@@ -2507,43 +2461,7 @@ void CudaSolverFIM::solve(std::vector<std::vector<dbl_t>> &act_ms,
     //printf("agg%d: %x (far: %x narrow: %x frozen: %x)\n", it, h_eksv[it].agg_state, far_state > 0, nar_state > 0, fro_state > 0);
   }
 
-  //d_agfd.copy_to(h_agfd);
-  //assemble_pointers(h_agfd);
-  
-  //std::cout<<"main active list size: "<<h_agfd[0].active_size<<"\n";
-
-  //for (int it = 0 ; it < h_agfd[0].active_size ; ++it)
-  //  std::cout<<h_agfd[0].active_list[it]<<" ";
-  //std::cout<<"\n";
-
-  //d_ekfd.copy_to(h_ekfd);
-  //assemble_pointers(h_ekfd);
-
-  //std::cout<<"submesh active lists: \n";
-  //for (int it = 0 ; it < h_ekfd.N ; ++it)
-  //{
-  //  printf("agg%d: al: %d\n", it, h_ekfd[it].active_size);
-  //}
-
-  // inter debug:
-  //d_inter.copy_to(h_inter);
-  //assemble_pointers(h_inter);
-  //log_info("inter debug end");
-  //for (int it = 0 ; it < h_inter.N ; ++it)
-  //{
-  //  for (int jt = 0 ; jt < h_inter[it].Na ; ++jt)
-  //  {
-  //    std::cout<<"A"<<h_inter[it].adx_con[jt]<<": ";
-  //    idx_t dsp = h_inter[it].gcd_dsp[jt];
-  //    for (int kt = 0 ; kt < h_inter[it].gcd_cnt[jt] ; ++kt)
-  //    {
-  //      std::cout<<h_inter[it].gcd_con[dsp+kt]<<" ";
-  //    }
-  //    std::cout<<" - Na: "<<h_inter[it].Na<<" Nc: "<<h_inter[it].Nc<<"\n";
-  //  }
-  //}
-
-  log_info("move data from local to global");
+  //log_info("move data from local to global");
   // move data from local to global
   for (int adx = 0 ; adx < h_eksv.N ; ++adx)
   {
@@ -2566,7 +2484,7 @@ void CudaSolverFIM::solve(std::vector<std::vector<dbl_t>> &act_ms,
     }
   }
 
-  log_info("save vtk");
+  //log_info("save vtk");
   std::vector<dbl_t> states_dbl;
   states_dbl.assign(states.begin(), states.end());
   save_vtk(file, mesh, {phi, states_dbl}, {"phi", "states"}, {}, {});
@@ -2579,8 +2497,9 @@ void CudaSolverFIM::solve(std::vector<std::vector<dbl_t>> &act_ms,
   //  d_smsh, d_eksv, d_ekfd, dt, n_steps);
   //cudaMemcpy(h_eksv, d_eksv);
   // assemble and apply submesh data to global data
-  
-  log_info("CudaSolverFIM::solve finished");
+  //log_info("CudaSolverFIM::solve finished");
+
+  return sum_exec_time_s/num_reps;
 }
 
 
@@ -2776,7 +2695,7 @@ __host__ void test_gray_code(const mesh_t &mesh)
 
 
 
-
+/*
 // correctness testing --------------------------------------------------------
 dbl_t solve_tri_cpu(const dbl_t &e12Me12, const dbl_t &e13Me13, const dbl_t &e23Me23,
                     const dbl_t &phi1,    const dbl_t &phi2)
@@ -3139,6 +3058,7 @@ dbl_t update_phi_ref(const mesh_t &mesh, const ek_data &ekdata, const idx_t vtx,
 
   return phi4;
 }
+*/
 
 
 
@@ -3152,8 +3072,7 @@ dbl_t update_phi_ref(const mesh_t &mesh, const ek_data &ekdata, const idx_t vtx,
 
 
 
-
-
+/*
 // ----------------------------------------------------------------------------
 __host__ void cuda_fim_test2()
 {
@@ -3220,20 +3139,18 @@ __host__ void cuda_fim_test3()
   //const std::string mesh_path = "/home/tom/workspace/masc-experiments/heart2/S62_500um.vtk";
   //const std::string part_path = "/home/tom/workspace/masc-experiments/heart2/S62_500um.29135.tags";
 
-  /*
-  cudaSetDevice(0);                   // Set device 0 as current
-  float* p0;
-  size_t size = 1024 * sizeof(float);
-  cudaMalloc(&p0, size);              // Allocate memory on device 0
-  MyKernel<<<1000, 128>>>(p0);        // Launch kernel on device 0
-  cudaSetDevice(1);                   // Set device 1 as current
-  cudaDeviceEnablePeerAccess(0, 0);   // Enable peer-to-peer access
+  //cudaSetDevice(0);                   // Set device 0 as current
+  //float* p0;
+  //size_t size = 1024 * sizeof(float);
+  //cudaMalloc(&p0, size);              // Allocate memory on device 0
+  //MyKernel<<<1000, 128>>>(p0);        // Launch kernel on device 0
+  //cudaSetDevice(1);                   // Set device 1 as current
+  //cudaDeviceEnablePeerAccess(0, 0);   // Enable peer-to-peer access
                                       // with device 0
 
   // Launch kernel on device 1
   // This kernel launch can access memory on device 0 at address p0
-  MyKernel<<<1000, 128>>>(p0);
-  */
+  //MyKernel<<<1000, 128>>>(p0);
 
   // load mesh
   mesh_t mesh;
@@ -3264,6 +3181,6 @@ __host__ void cuda_fim_test3()
   //const std::string ref_path = "/home/tom/workspace/masc-experiments/heart/S62_ref.dat";
   //if (!std::filesystem::exists(ref_path))
 }
-
+*/
 // ----------------------------------------------------------------------------
 } // namespace tw =======================================================

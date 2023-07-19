@@ -81,8 +81,9 @@
 
 namespace tw { // =============================================================
 // ----------------------------------------------------------------------------
-void run(const std::string &mesh_path, const std::string &part_path,
-         const std::string &plan_path, const std::string &out_path)
+double run(const std::string &mesh_path, const std::string &part_path,
+           const std::string &plan_path, const std::string &out_path,
+           const int num_reps)
 {
   // load mesh
   mesh_t mesh;
@@ -93,11 +94,13 @@ void run(const std::string &mesh_path, const std::string &part_path,
   ek_data ekdata(mesh);
   load_options("data/default.cfg", ekdata.opts);
   load_plan(plan_path, ekdata);
-  ekdata.opts.print();
+  //ekdata.opts.print();
 
   std::vector<std::vector<dbl_t>> act_ms, apd_ms;
   CudaSolverFIM solver(ekdata);
-  solver.solve(act_ms, apd_ms, out_path);//"cuda_fim_heart.vtk"
+  const double avg_exec_time_s = solver.solve(act_ms, apd_ms, out_path, num_reps);//"cuda_fim_heart.vtk"
+
+  return avg_exec_time_s;
 }
 // ----------------------------------------------------------------------------
 void run_unit_tests()
@@ -155,10 +158,10 @@ void run_unit_tests()
 
 #if true
   run("data/ut_mesh/ut_mesh.vtk",       "data/ut_mesh/ut_mesh.tags", 
-      "data/ut_mesh/ut_mesh.plan.json", "data/output/cufim-ut_mesh-out.vtk");
+      "data/ut_mesh/ut_mesh.plan.json", "data/output/cufim-ut_mesh-out.vtk", 1);
 #elif
   run("data/heart/S62.vtk", "data/heart/S62.7560.tags", 
-      "data/heart/S62.plan.json", "data/output/cufim-heart-out.vtk");
+      "data/heart/S62.plan.json", "data/output/cufim-heart-out.vtk", 1);
 #endif
 }
 // ----------------------------------------------------------------------------
@@ -169,6 +172,7 @@ int main(int argc, char* argv[])
   int exit_code = EXIT_SUCCESS;
   // make clean && make && ./cufim-nvlink -mesh=data/ut_mesh/ut_mesh.vtk -part=data/ut_mesh/ut_mesh.tags -plan=data/ut_mesh/ut_studio_plan.json -outfile=data/output/out.vtk
   // ./cufim-nvlink --mesh=/home/tom/workspace/masc-experiments/heart2/S62_1200um.vtk --part=/home/tom/workspace/masc-experiments/heart2/S62_1200um.7560.tags --plan=/home/tom/workspace/masc-experiments/heart2/S62_1200um.plan.json --odir=data/output/cufim-heart_1200um-out.vtk
+  // ./cufim-nvlink --mesh=/home/schrottert/projects/heart-meshes/S62_1200um.vtk --part=/home/schrottert/projects/heart-meshes/S62_1200um.7560.tags --plan=/home/schrottert/projects/heart-meshes/S62_1200um.plan.json --odir=data/output/cufim-heart_1200um-out.vtk
 
   argparse::ArgumentParser program("cufim-nvlink", "0.5.0"); tw::print_head();
   program.add_description("Forward a thing to the next member.");
@@ -181,7 +185,9 @@ int main(int argc, char* argv[])
 
   program.add_argument("-i", "--info").help("outputs gpu information").default_value(false).implicit_value(true);
   program.add_argument("-t", "--test").help("run unit test configuration").default_value(false).implicit_value(true);
-  program.add_argument("-np", "--num_threads").help("specifies how many threads are used").default_value(8).metavar("INT");
+  program.add_argument("-r", "--reps").help("set number of runs/repetitions").default_value(1).metavar("INT").scan<'i', int>();;
+  program.add_argument("-np", "--num_threads").help("specifies how many threads are used").default_value(8).metavar("INT").scan<'i', int>();;
+  
   //program.add_argument("-v", "--verbose").help("increases output verbosity").default_value(false).implicit_value(true);
   // gpuids (default 0) 0,1,2,3
 
@@ -201,6 +207,7 @@ int main(int argc, char* argv[])
   try
   {
     tw::cuda_info cudainfo;
+    const int num_reps = program.get<int>("--reps");
 
     if (program.is_used("--help"))
       std::cout<<program<<std::endl;
@@ -208,8 +215,13 @@ int main(int argc, char* argv[])
       cudainfo.print();
     else if (program.is_used("--test"))
       tw::run_unit_tests();
+    else if (num_reps < 1)
+      std::cout<<"invalid number of reps!\n";
     else if (program.is_used("--mesh") && program.is_used("--part") && program.is_used("--plan") && program.is_used("--odir"))
-      tw::run(program.get("--mesh"), program.get("--part"), program.get("--plan"), program.get("--odir"));
+    {
+      const double avg_exec_time_s = tw::run(program.get("--mesh"), program.get("--part"), program.get("--plan"), program.get("--odir"), num_reps);
+      printf("Average execution time for %d runs: %f s\n", num_reps, avg_exec_time_s);
+    }
     else
       std::cout<<program<<std::endl;
   } 
